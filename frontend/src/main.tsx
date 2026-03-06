@@ -9,6 +9,7 @@ import '@mantine/core/styles.css';
 import '@mantine/dates/styles.css';
 import '@mantine/notifications/styles.css';
 import { theme } from './theme/theme';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import App from './App';
 
 const queryClient = new QueryClient({
@@ -23,15 +24,17 @@ const queryClient = new QueryClient({
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <MantineProvider theme={theme} defaultColorScheme="light">
-        <ModalsProvider>
-          <Notifications position="top-right" />
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
-        </ModalsProvider>
-      </MantineProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <MantineProvider theme={theme} defaultColorScheme="light">
+          <ModalsProvider>
+            <Notifications position="top-right" />
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </ModalsProvider>
+        </MantineProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );

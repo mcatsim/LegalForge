@@ -94,3 +94,9 @@ app.include_router(cloud_storage_router, prefix="/api/cloud-storage", tags=["Clo
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy", "version": settings.app_version}
+
+
+if settings.environment == "test":
+    @app.get("/api/health/crash-test")
+    async def crash_test():
+        raise RuntimeError("Deliberate crash for testing exception handler")
