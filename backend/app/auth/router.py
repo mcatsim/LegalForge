@@ -128,8 +128,20 @@ async def change_password(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
 
     current_user.password_hash = hash_password(data.new_password)
+
+    # Revoke all existing refresh tokens (force re-login on other devices)
+    from app.auth.models import RefreshToken
+    tokens_result = await db.execute(
+        select(RefreshToken).where(
+            RefreshToken.user_id == current_user.id,
+            RefreshToken.revoked == False,  # noqa: E712
+        )
+    )
+    for token in tokens_result.scalars().all():
+        token.revoked = True
+
     await db.flush()
-    return {"message": "Password updated"}
+    return {"message": "Password updated. Please log in again on other devices."}
 
 
 # ── Two-Factor Authentication ─────────────────────────────────────

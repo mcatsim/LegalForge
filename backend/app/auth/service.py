@@ -39,7 +39,7 @@ def create_access_token(user_id: str, role: str) -> str:
 
 
 def create_refresh_token_value() -> str:
-    return str(uuid.uuid4())
+    return secrets.token_urlsafe(32)
 
 
 def hash_token(token: str) -> str:
@@ -87,8 +87,8 @@ def verify_totp_code(secret: str, code: str) -> bool:
 
 
 def generate_recovery_codes(count: int = 8) -> list[str]:
-    """Generate plaintext recovery codes."""
-    return [secrets.token_hex(4).upper() for _ in range(count)]
+    """Generate plaintext recovery codes with 64 bits of entropy each."""
+    return [secrets.token_hex(8).upper() for _ in range(count)]
 
 
 def hash_recovery_codes(codes: list[str]) -> str:
@@ -98,12 +98,17 @@ def hash_recovery_codes(codes: list[str]) -> str:
 
 
 def verify_recovery_code(stored_hashes_json: str, code: str) -> tuple[bool, str]:
-    """Verify a recovery code. Returns (valid, updated_hashes_json) with used code removed."""
+    """Verify a recovery code using constant-time comparison.
+
+    Returns (valid, updated_hashes_json) with used code removed.
+    """
+    import hmac as _hmac
     code_hash = hashlib.sha256(code.upper().encode()).hexdigest()
     hashes = json.loads(stored_hashes_json)
-    if code_hash in hashes:
-        hashes.remove(code_hash)
-        return True, json.dumps(hashes)
+    for i, stored_hash in enumerate(hashes):
+        if _hmac.compare_digest(code_hash, stored_hash):
+            hashes.pop(i)
+            return True, json.dumps(hashes)
     return False, stored_hashes_json
 
 
@@ -524,4 +529,5 @@ async def bootstrap_admin():
         )
         db.add(admin)
         await db.commit()
-        print(f"Bootstrap admin created: {settings.first_admin_email}")
+        import logging
+        logging.getLogger(__name__).info("Bootstrap admin created")

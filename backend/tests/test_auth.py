@@ -217,7 +217,7 @@ class TestPasswordChange:
             headers={"Authorization": f"Bearer {token}"},
         )
         assert resp.status_code == 200
-        assert resp.json()["message"] == "Password updated"
+        assert "Password updated" in resp.json()["message"]
 
         # Old password should no longer work
         resp2 = await client.post(
