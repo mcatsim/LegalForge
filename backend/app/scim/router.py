@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,11 +42,11 @@ async def list_users(
     db: AsyncSession = Depends(get_db),
     token: ScimBearerToken = Depends(get_scim_client),
     filter: Optional[str] = None,
-    startIndex: int = 1,
+    start_index: int = Query(1, alias="startIndex"),
     count: int = 100,
 ):
     base_url = _get_base_url(request)
-    result = await scim_service.list_users(db, filter, startIndex, count, base_url)
+    result = await scim_service.list_users(db, filter, start_index, count, base_url)
     return _scim_response(result)
 
 

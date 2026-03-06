@@ -22,8 +22,8 @@ def _get_sync_session() -> Session:
     # Convert async URL to sync for Celery tasks
     sync_url = settings.database_url.replace("+asyncpg", "").replace("+aiosqlite", "")
     engine = create_engine(sync_url)
-    SessionLocal = sessionmaker(bind=engine)
-    return SessionLocal()
+    session_factory = sessionmaker(bind=engine)
+    return session_factory()
 
 
 @celery.task(name="cloud_storage.refresh_cloud_tokens")

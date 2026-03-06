@@ -54,13 +54,12 @@ class TestCreateMatter:
         assert body["litigation_type"] == "other"
 
     async def test_create_matter_requires_auth(self, sample_client: dict):
-        from httpx import ASGITransport
-        from httpx import AsyncClient as AC
+        from httpx import ASGITransport, AsyncClient
 
         from app.main import app
 
         transport = ASGITransport(app=app)
-        async with AC(transport=transport, base_url="http://test") as unauthed:
+        async with AsyncClient(transport=transport, base_url="http://test") as unauthed:
             data = {"title": "No Auth", "client_id": sample_client["id"]}
             resp = await unauthed.post("/api/matters", json=data)
             assert resp.status_code in (401, 403)

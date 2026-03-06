@@ -451,10 +451,18 @@ def _siem_config_to_response(config: SiemConfig) -> dict:
         "webhook_secret_masked": secret_masked,
         "syslog_host": config.syslog_host,
         "syslog_port": config.syslog_port,
-        "syslog_protocol": config.syslog_protocol.value if hasattr(config.syslog_protocol, "value") else config.syslog_protocol,
+        "syslog_protocol": (
+            config.syslog_protocol.value
+            if hasattr(config.syslog_protocol, "value")
+            else config.syslog_protocol
+        ),
         "syslog_tls_ca_cert": config.syslog_tls_ca_cert,
         "realtime_enabled": config.realtime_enabled,
-        "realtime_format": config.realtime_format.value if hasattr(config.realtime_format, "value") else config.realtime_format,
+        "realtime_format": (
+            config.realtime_format.value
+            if hasattr(config.realtime_format, "value")
+            else config.realtime_format
+        ),
         "created_at": config.created_at.isoformat() if config.created_at else None,
         "updated_at": config.updated_at.isoformat() if config.updated_at else None,
     }
@@ -504,7 +512,12 @@ async def update_siem_config(
         changes["syslog_port"] = {"old": config.syslog_port, "new": data.syslog_port}
         config.syslog_port = data.syslog_port
     if data.syslog_protocol is not None:
-        changes["syslog_protocol"] = {"old": config.syslog_protocol.value if hasattr(config.syslog_protocol, "value") else config.syslog_protocol, "new": data.syslog_protocol}
+        old_proto = (
+            config.syslog_protocol.value
+            if hasattr(config.syslog_protocol, "value")
+            else config.syslog_protocol
+        )
+        changes["syslog_protocol"] = {"old": old_proto, "new": data.syslog_protocol}
         config.syslog_protocol = SyslogProtocol(data.syslog_protocol)
     if data.syslog_tls_ca_cert is not None:
         changes["syslog_tls_ca_cert"] = "updated"
@@ -513,7 +526,12 @@ async def update_siem_config(
         changes["realtime_enabled"] = {"old": config.realtime_enabled, "new": data.realtime_enabled}
         config.realtime_enabled = data.realtime_enabled
     if data.realtime_format is not None:
-        changes["realtime_format"] = {"old": config.realtime_format.value if hasattr(config.realtime_format, "value") else config.realtime_format, "new": data.realtime_format}
+        old_fmt = (
+            config.realtime_format.value
+            if hasattr(config.realtime_format, "value")
+            else config.realtime_format
+        )
+        changes["realtime_format"] = {"old": old_fmt, "new": data.realtime_format}
         config.realtime_format = SiemFormat(data.realtime_format)
 
     await create_audit_log(
@@ -621,7 +639,8 @@ async def test_siem_syslog(
             test_message,
             config.syslog_tls_ca_cert,
         )
-        return {"status": "sent", "message": f"Test message sent to {config.syslog_host}:{config.syslog_port} via {protocol}"}
+        msg = f"Test message sent to {config.syslog_host}:{config.syslog_port} via {protocol}"
+        return {"status": "sent", "message": msg}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
 

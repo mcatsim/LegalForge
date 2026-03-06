@@ -28,8 +28,8 @@ def _get_sync_session() -> Session:
         url = url.replace("sqlite+aiosqlite", "sqlite", 1)
 
     engine = create_engine(url)
-    SessionLocal = sessionmaker(bind=engine)
-    return SessionLocal()
+    session_factory = sessionmaker(bind=engine)
+    return session_factory()
 
 
 def _load_siem_config(session: Session):
@@ -106,7 +106,11 @@ def push_siem_event(self, audit_log_id: str):
 
         # Send via syslog if configured
         if config.syslog_host:
-            protocol = config.syslog_protocol.value if hasattr(config.syslog_protocol, "value") else config.syslog_protocol
+            protocol = (
+                config.syslog_protocol.value
+                if hasattr(config.syslog_protocol, "value")
+                else config.syslog_protocol
+            )
             push_siem_syslog.delay(
                 config.syslog_host,
                 config.syslog_port or 514,
