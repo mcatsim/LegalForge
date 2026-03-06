@@ -15,13 +15,13 @@ from app.admin.models import SiemConfig, SiemFormat, SyslogProtocol
 from app.admin.schemas import SiemConfigResponse, SiemConfigUpdate, SoarActionResponse
 from app.auth.models import AuditLog, RefreshToken, SystemSetting, User
 from app.auth.service import create_audit_log
-from app.scim.schemas import ScimBearerTokenCreate, ScimBearerTokenCreateResponse, ScimBearerTokenResponse
-from app.scim import service as scim_service
 from app.common.audit import AuditEventJSON, audit_to_cef, audit_to_syslog
 from app.common.encryption import decrypt_field, encrypt_field
 from app.common.pagination import PaginatedResponse
 from app.database import get_db
 from app.dependencies import require_roles
+from app.scim import service as scim_service
+from app.scim.schemas import ScimBearerTokenCreate, ScimBearerTokenCreateResponse, ScimBearerTokenResponse
 
 router = APIRouter()
 
@@ -751,7 +751,7 @@ async def soar_force_logout_all(
     db: Annotated[AsyncSession, Depends(get_db)],
     admin: Annotated[User, Depends(require_roles("admin"))],
 ):
-    result = await db.execute(
+    await db.execute(
         update(RefreshToken)
         .where(RefreshToken.revoked == False)  # noqa: E712
         .values(revoked=True)

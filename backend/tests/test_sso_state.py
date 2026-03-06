@@ -1,10 +1,9 @@
 """Tests for SSO state parameter consumption."""
-import uuid
+
+from datetime import datetime, timedelta, timezone
 
 import pytest
 import pytest_asyncio
-from datetime import datetime, timedelta, timezone
-
 from sqlalchemy import select
 
 from app.sso.models import SSOProvider, SSOProviderType, SSOSession

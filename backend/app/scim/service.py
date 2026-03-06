@@ -3,7 +3,7 @@ import re
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -252,7 +252,7 @@ async def update_user(
 
 
 async def patch_user(
-    db: AsyncSession, user_id: uuid.UUID, operations: List[Dict], base_url: str
+    db: AsyncSession, user_id: uuid.UUID, operations: list[dict], base_url: str
 ) -> Optional[dict]:
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -353,7 +353,7 @@ async def create_bearer_token(
     description: str,
     expires_in_days: Optional[int],
     created_by: uuid.UUID,
-) -> Tuple[ScimBearerToken, str]:
+) -> tuple[ScimBearerToken, str]:
     plaintext_token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(plaintext_token.encode("utf-8")).hexdigest()
 
@@ -375,7 +375,7 @@ async def create_bearer_token(
     return token_record, plaintext_token
 
 
-async def list_bearer_tokens(db: AsyncSession) -> List[ScimBearerToken]:
+async def list_bearer_tokens(db: AsyncSession) -> list[ScimBearerToken]:
     result = await db.execute(
         select(ScimBearerToken).order_by(ScimBearerToken.created_at.desc())
     )

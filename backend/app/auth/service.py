@@ -4,7 +4,7 @@ import json
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import Optional
 
 import jwt
 import pyotp
@@ -12,9 +12,20 @@ import redis.asyncio as aioredis
 from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from webauthn import generate_authentication_options, generate_registration_options, verify_authentication_response, verify_registration_response
+from webauthn import (
+    generate_authentication_options,
+    generate_registration_options,
+    verify_authentication_response,
+    verify_registration_response,
+)
 from webauthn.helpers import options_to_json
-from webauthn.helpers.structs import AuthenticatorSelectionCriteria, AuthenticatorTransport, PublicKeyCredentialDescriptor, ResidentKeyRequirement, UserVerificationRequirement
+from webauthn.helpers.structs import (
+    AuthenticatorSelectionCriteria,
+    AuthenticatorTransport,
+    PublicKeyCredentialDescriptor,
+    ResidentKeyRequirement,
+    UserVerificationRequirement,
+)
 
 from app.auth.models import AuditLog, RefreshToken, User, UserRole, WebAuthnCredential
 from app.auth.schemas import UserCreate
@@ -240,7 +251,7 @@ async def webauthn_registration_complete(
 
     aaguid_str = str(verification.aaguid) if verification.aaguid else None
 
-    transports_list: Optional[List[str]] = None
+    transports_list: Optional[list[str]] = None
     raw_transports = credential_data.get("response", {}).get("transports")
     if raw_transports and isinstance(raw_transports, list):
         transports_list = raw_transports

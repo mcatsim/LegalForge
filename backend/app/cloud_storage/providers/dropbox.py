@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Tuple
+from typing import Optional
 from urllib.parse import urlencode
 
 import httpx
@@ -102,7 +102,7 @@ class DropboxProvider(CloudStorageProvider):
             "web_url": None,
         }
 
-    async def download_file(self, access_token: str, file_id: str) -> Tuple[bytes, str, str]:
+    async def download_file(self, access_token: str, file_id: str) -> tuple[bytes, str, str]:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
                 f"{CONTENT_BASE}/files/download",

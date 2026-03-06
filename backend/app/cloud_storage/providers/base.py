@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 
 class CloudStorageProvider(ABC):
@@ -24,7 +24,7 @@ class CloudStorageProvider(ABC):
         ...
 
     @abstractmethod
-    async def download_file(self, access_token: str, file_id: str) -> Tuple[bytes, str, str]:
+    async def download_file(self, access_token: str, file_id: str) -> tuple[bytes, str, str]:
         ...
 
     @abstractmethod

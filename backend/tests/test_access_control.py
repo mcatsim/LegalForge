@@ -5,7 +5,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.auth.models import UserRole
 from app.main import app
-from tests.conftest import _create_test_user, _auth_header
+from tests.conftest import _auth_header, _create_test_user
 
 
 @pytest_asyncio.fixture

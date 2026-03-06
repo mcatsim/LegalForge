@@ -34,7 +34,7 @@ def refresh_cloud_tokens():
         threshold = datetime.now(timezone.utc) + timedelta(hours=1)
         result = session.execute(
             select(CloudStorageConnection).where(
-                CloudStorageConnection.is_active == True,
+                CloudStorageConnection.is_active,
                 CloudStorageConnection.token_expires_at.isnot(None),
                 CloudStorageConnection.token_expires_at < threshold,
                 CloudStorageConnection.refresh_token_encrypted.isnot(None),

@@ -1,6 +1,6 @@
 import json
 import uuid as _uuid
-from typing import Annotated, List
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func, select
@@ -52,8 +52,8 @@ from app.auth.service import (
     webauthn_registration_begin,
     webauthn_registration_complete,
 )
-from app.common.rate_limit import rate_limit_login, rate_limit_2fa, reset_login_rate_limit
 from app.common.pagination import PaginatedResponse, PaginationParams
+from app.common.rate_limit import rate_limit_2fa, rate_limit_login, reset_login_rate_limit
 from app.database import get_db
 from app.dependencies import get_current_user, require_roles
 
@@ -74,7 +74,7 @@ async def login(data: LoginRequest, request: Request, db: Annotated[AsyncSession
     reset_login_rate_limit(request)
 
     # If any MFA method is enabled, return a temporary token instead of full credentials
-    mfa_methods: List[str] = []
+    mfa_methods: list[str] = []
     if user.totp_enabled:
         mfa_methods.append("totp")
     if user.webauthn_enabled:
@@ -365,7 +365,7 @@ async def webauthn_authenticate_complete(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
 
     try:
-        success = await webauthn_auth_complete(user, data.credential, db)
+        await webauthn_auth_complete(user, data.credential, db)
     except ValueError as e:
         await create_audit_log(
             db,
@@ -406,7 +406,7 @@ async def webauthn_authenticate_complete(
     return LoginResponse(access_token=access_token, refresh_token=refresh_token)
 
 
-@router.get("/webauthn/credentials", response_model=List[WebAuthnCredentialResponse])
+@router.get("/webauthn/credentials", response_model=list[WebAuthnCredentialResponse])
 async def list_webauthn_credentials(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],

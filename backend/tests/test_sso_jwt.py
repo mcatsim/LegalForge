@@ -1,5 +1,4 @@
 """Tests for SSO JWT signature verification."""
-from unittest.mock import patch
 
 import jwt
 import pytest

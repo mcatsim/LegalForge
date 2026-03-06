@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy import Boolean, Enum, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.common.base_models import GUID, TimestampMixin, UUIDBase
+from app.common.base_models import TimestampMixin, UUIDBase
 
 
 class SyslogProtocol(str, enum.Enum):

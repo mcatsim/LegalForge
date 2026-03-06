@@ -1,4 +1,3 @@
-import base64
 import logging
 import secrets
 import uuid
@@ -8,7 +7,6 @@ from typing import Optional
 import httpx
 import jwt as jose_jwt
 from jwt import PyJWKClient
-from cryptography.fernet import InvalidToken
 from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 from sqlalchemy import select, update
@@ -16,13 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User, UserRole
 from app.auth.service import create_access_token, create_refresh_token, hash_password
+from app.common.encryption import decrypt_field as decrypt_value
+from app.common.encryption import encrypt_field as encrypt_value
 from app.config import settings
 from app.sso.models import SSOProvider, SSOSession
 
 logger = logging.getLogger(__name__)
-
-
-from app.common.encryption import decrypt_field as decrypt_value, encrypt_field as encrypt_value
 
 
 def mask_secret(encrypted_secret: Optional[str]) -> Optional[str]:
@@ -304,7 +301,7 @@ def _prepare_saml_request_data(url: str, post_data: Optional[dict] = None) -> di
 
 async def initiate_saml_login(db: AsyncSession, provider: SSOProvider) -> tuple[str, str]:
     saml_settings = _build_saml_settings(provider)
-    base_url = settings.sso_redirect_uri.rsplit("/callback", 1)[0]
+    settings.sso_redirect_uri.rsplit("/callback", 1)[0]
     acs_url = saml_settings["sp"]["assertionConsumerService"]["url"]
     request_data = _prepare_saml_request_data(acs_url)
 
@@ -332,10 +329,9 @@ async def handle_saml_callback(
     provider: SSOProvider,
     db: AsyncSession,
 ) -> tuple:
-    from app.auth.service import create_audit_log
 
     saml_settings = _build_saml_settings(provider)
-    base_url = settings.sso_redirect_uri.rsplit("/callback", 1)[0]
+    settings.sso_redirect_uri.rsplit("/callback", 1)[0]
     acs_url = saml_settings["sp"]["assertionConsumerService"]["url"]
 
     request_data = _prepare_saml_request_data(acs_url, post_data=saml_response_data)
@@ -355,7 +351,7 @@ async def handle_saml_callback(
     # Extract NameID and attributes
     name_id = auth.get_nameid()
     attributes = auth.get_attributes()
-    session_index = auth.get_session_index()
+    auth.get_session_index()
 
     # Map attributes to user fields using attribute_mapping or defaults
     attr_mapping = provider.saml_attribute_mapping or {}
@@ -409,7 +405,7 @@ async def handle_saml_callback(
 
 def generate_sp_metadata(provider: SSOProvider) -> str:
     saml_settings = _build_saml_settings(provider)
-    base_url = settings.sso_redirect_uri.rsplit("/callback", 1)[0]
+    settings.sso_redirect_uri.rsplit("/callback", 1)[0]
     acs_url = saml_settings["sp"]["assertionConsumerService"]["url"]
 
     request_data = _prepare_saml_request_data(acs_url)
@@ -469,7 +465,6 @@ async def _consume_sso_state(db: AsyncSession, state: str) -> SSOSession:
             raise ValueError("SSO session has expired")
 
     # Consume: delete the session so it cannot be reused
-    provider_id = sso_session.provider_id
     await db.delete(sso_session)
     await db.flush()
 

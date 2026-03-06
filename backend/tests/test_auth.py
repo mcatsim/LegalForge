@@ -20,7 +20,7 @@ class TestLogin:
 
     async def test_login_valid_credentials(self, client: AsyncClient):
         """Successful login returns access + refresh tokens."""
-        user = await _create_test_user(
+        await _create_test_user(
             email="login-ok@test.com",
             password="GoodPassword1!",
             role=UserRole.attorney,

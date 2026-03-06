@@ -1,7 +1,7 @@
 import asyncio
-import ssl
 import logging
-from typing import Optional, Dict, Tuple
+import ssl
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +22,8 @@ class _UDPProtocol(asyncio.DatagramProtocol):
 
 class SyslogSender:
     def __init__(self):
-        self._tcp_connections: Dict[Tuple[str, int, str], Tuple[asyncio.StreamReader, asyncio.StreamWriter]] = {}
-        self._udp_transports: Dict[Tuple[str, int], asyncio.DatagramTransport] = {}
+        self._tcp_connections: dict[tuple[str, int, str], tuple[asyncio.StreamReader, asyncio.StreamWriter]] = {}
+        self._udp_transports: dict[tuple[str, int], asyncio.DatagramTransport] = {}
 
     async def send(
         self,

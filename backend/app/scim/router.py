@@ -1,14 +1,14 @@
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.scim import service as scim_service
 from app.scim.auth import get_scim_client
 from app.scim.models import ScimBearerToken
-from app.scim import service as scim_service
 
 router = APIRouter()
 

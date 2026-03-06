@@ -6,6 +6,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.billing.models import Invoice, InvoiceStatus, Payment, PaymentMethod
+from app.common.encryption import decrypt_field as decrypt_value
+from app.common.encryption import encrypt_field as encrypt_value
 from app.config import settings
 from app.payments.models import (
     PaymentLink,
@@ -26,8 +28,6 @@ from app.payments.schemas import (
     SendPaymentLinkRequest,
     SendPaymentLinkResponse,
 )
-
-from app.common.encryption import decrypt_field as decrypt_value, encrypt_field as encrypt_value
 
 
 def mask_secret(encrypted_secret: Optional[str]) -> Optional[str]:

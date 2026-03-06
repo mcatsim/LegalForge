@@ -5,11 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.accounting.router import router as accounting_router
 from app.admin.router import router as admin_router
-from app.cloud_storage.router import router as cloud_storage_router
 from app.auth.router import router as auth_router
 from app.billing.router import router as billing_router
 from app.calendar.router import router as calendar_router
 from app.clients.router import router as clients_router
+from app.cloud_storage.router import router as cloud_storage_router
 from app.config import settings
 from app.conflicts.router import router as conflicts_router
 from app.contacts.router import router as contacts_router
@@ -25,8 +25,8 @@ from app.payments.router import router as payments_router
 from app.portal.router import client_router as portal_client_router
 from app.portal.router import staff_router as portal_staff_router
 from app.reports.router import router as reports_router
-from app.search.router import router as search_router
 from app.scim.router import router as scim_router
+from app.search.router import router as search_router
 from app.sso.router import router as sso_router
 from app.tasks.router import router as tasks_router
 from app.tasks.router import workflow_router

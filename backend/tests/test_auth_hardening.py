@@ -5,7 +5,6 @@ from app.auth.service import (
     create_refresh_token_value,
     generate_recovery_codes,
     verify_recovery_code,
-    hash_recovery_codes,
 )
 
 

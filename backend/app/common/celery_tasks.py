@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 def _get_sync_session() -> Session:
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+
     from app.config import settings
 
     url = settings.database_url
@@ -61,6 +62,7 @@ def _audit_log_to_event_json(log) -> AuditEventJSON:
 @celery.task(name="push_siem_event", bind=True, max_retries=3)
 def push_siem_event(self, audit_log_id: str):
     import uuid
+
     from app.auth.models import AuditLog
 
     session = _get_sync_session()
