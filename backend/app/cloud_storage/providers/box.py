@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional
 from urllib.parse import urlencode
 
 import httpx
@@ -99,7 +99,7 @@ class BoxProvider(CloudStorageProvider):
             "web_url": entry.get("shared_link", {}).get("url") if entry.get("shared_link") else None,
         }
 
-    async def download_file(self, access_token: str, file_id: str) -> Tuple[bytes, str, str]:
+    async def download_file(self, access_token: str, file_id: str) -> tuple[bytes, str, str]:
         async with httpx.AsyncClient(follow_redirects=True) as client:
             # Get metadata first
             meta_resp = await client.get(

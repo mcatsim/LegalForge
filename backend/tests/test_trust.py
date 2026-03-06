@@ -275,3 +275,24 @@ class TestReconciliation:
         assert resp.status_code == 201
         body = resp.json()
         assert body["is_balanced"] is False
+
+
+# ---------------------------------------------------------------------------
+# Race condition prevention
+# ---------------------------------------------------------------------------
+
+
+class TestRaceConditionPrevention:
+    """Verify SELECT FOR UPDATE is used to prevent concurrent overdraw."""
+
+    async def test_create_ledger_entry_uses_select_for_update(self):
+        """create_ledger_entry must use SELECT FOR UPDATE to lock the row."""
+        import inspect
+
+        from app.trust.service import create_ledger_entry
+
+        source = inspect.getsource(create_ledger_entry)
+        assert "with_for_update" in source, (
+            "create_ledger_entry must use SELECT FOR UPDATE to prevent "
+            "concurrent disbursements from overdrawing the trust account"
+        )

@@ -55,7 +55,9 @@ async def get_ledger_entries(
 async def create_ledger_entry(
     db: AsyncSession, data: TrustLedgerEntryCreate, created_by: uuid.UUID
 ) -> TrustLedgerEntry:
-    account = await get_trust_account(db, data.trust_account_id)
+    # Lock the row to prevent concurrent balance reads (SELECT FOR UPDATE)
+    result = await db.execute(select(TrustAccount).where(TrustAccount.id == data.trust_account_id).with_for_update())
+    account = result.scalar_one_or_none()
     if account is None:
         raise ValueError("Trust account not found")
 

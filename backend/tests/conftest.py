@@ -101,6 +101,19 @@ app.dependency_overrides[get_db] = _override_get_db
 
 
 # ---------------------------------------------------------------------------
+# Rate limit state cleanup (prevent cross-test contamination)
+# ---------------------------------------------------------------------------
+@pytest.fixture(autouse=True)
+def _clear_rate_limits():
+    """Clear in-memory rate limit windows between every test."""
+    from app.common.rate_limit import _windows
+
+    _windows.clear()
+    yield
+    _windows.clear()
+
+
+# ---------------------------------------------------------------------------
 # HTTP client fixture
 # ---------------------------------------------------------------------------
 @pytest_asyncio.fixture

@@ -15,7 +15,19 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor: handle 401 with token refresh
+// Response interceptor: handle 401 with token refresh (mutex pattern)
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+function onRefreshed(token: string) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
+function addRefreshSubscriber(cb: (token: string) => void) {
+  refreshSubscribers.push(cb);
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -23,6 +35,18 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
+
+      if (isRefreshing) {
+        // Another request is already refreshing — wait for it
+        return new Promise((resolve) => {
+          addRefreshSubscriber((token: string) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            resolve(api(originalRequest));
+          });
+        });
+      }
+
+      isRefreshing = true;
       const refreshToken = useAuthStore.getState().refreshToken;
 
       if (refreshToken) {
@@ -32,13 +56,18 @@ api.interceptors.response.use(
           });
           const { access_token, refresh_token } = response.data;
           useAuthStore.getState().setTokens(access_token, refresh_token);
+          isRefreshing = false;
+          onRefreshed(access_token);
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
           return api(originalRequest);
         } catch {
+          isRefreshing = false;
+          refreshSubscribers = [];
           useAuthStore.getState().logout();
           window.location.href = '/login';
         }
       } else {
+        isRefreshing = false;
         useAuthStore.getState().logout();
         window.location.href = '/login';
       }

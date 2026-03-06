@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,9 +38,7 @@ async def complete_oauth(
     connection_id: uuid.UUID,
     db: AsyncSession,
 ) -> CloudStorageConnection:
-    result = await db.execute(
-        select(CloudStorageConnection).where(CloudStorageConnection.id == connection_id)
-    )
+    result = await db.execute(select(CloudStorageConnection).where(CloudStorageConnection.id == connection_id))
     connection = result.scalar_one_or_none()
     if not connection:
         raise ValueError("Connection not found")
@@ -73,12 +71,12 @@ async def complete_oauth(
 async def list_connections(
     user_id: uuid.UUID,
     db: AsyncSession,
-) -> List[CloudStorageConnection]:
+) -> list[CloudStorageConnection]:
     result = await db.execute(
         select(CloudStorageConnection)
         .where(
             CloudStorageConnection.connected_by == user_id,
-            CloudStorageConnection.is_active == True,
+            CloudStorageConnection.is_active,
         )
         .order_by(CloudStorageConnection.created_at.desc())
     )
@@ -152,7 +150,7 @@ async def browse_folder(
         select(CloudStorageConnection).where(
             CloudStorageConnection.id == connection_id,
             CloudStorageConnection.connected_by == user_id,
-            CloudStorageConnection.is_active == True,
+            CloudStorageConnection.is_active,
         )
     )
     connection = result.scalar_one_or_none()
@@ -200,7 +198,7 @@ async def create_link(
 async def list_links(
     matter_id: uuid.UUID,
     db: AsyncSession,
-) -> List[CloudStorageLink]:
+) -> list[CloudStorageLink]:
     result = await db.execute(
         select(CloudStorageLink)
         .where(CloudStorageLink.matter_id == matter_id)
@@ -214,9 +212,7 @@ async def delete_link(
     user_id: uuid.UUID,
     db: AsyncSession,
 ) -> None:
-    result = await db.execute(
-        select(CloudStorageLink).where(CloudStorageLink.id == link_id)
-    )
+    result = await db.execute(select(CloudStorageLink).where(CloudStorageLink.id == link_id))
     link = result.scalar_one_or_none()
     if not link:
         raise ValueError("Link not found")
@@ -236,7 +232,7 @@ async def import_file(
     result = await db.execute(
         select(CloudStorageConnection).where(
             CloudStorageConnection.id == connection_id,
-            CloudStorageConnection.is_active == True,
+            CloudStorageConnection.is_active,
         )
     )
     connection = result.scalar_one_or_none()
@@ -317,7 +313,7 @@ async def export_file(
     conn_result = await db.execute(
         select(CloudStorageConnection).where(
             CloudStorageConnection.id == connection_id,
-            CloudStorageConnection.is_active == True,
+            CloudStorageConnection.is_active,
         )
     )
     connection = conn_result.scalar_one_or_none()
@@ -335,9 +331,7 @@ async def export_file(
     response.release_conn()
 
     # Upload to cloud
-    cloud_file = await provider_impl.upload_file(
-        access_token, folder_id, doc.filename, content, doc.mime_type
-    )
+    cloud_file = await provider_impl.upload_file(access_token, folder_id, doc.filename, content, doc.mime_type)
 
     # Create link
     link = await create_link(

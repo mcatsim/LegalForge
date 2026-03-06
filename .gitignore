@@ -57,3 +57,9 @@ coverage/
 **/coverage/
 .coverage
 .coverage.*
+
+# Worktrees
+.worktrees/
+
+# Claude
+.claude/

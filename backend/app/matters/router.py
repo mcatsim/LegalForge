@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
 from app.auth.service import create_audit_log
+from app.common.access_control import check_matter_access
 from app.common.pagination import PaginatedResponse
 from app.database import get_db
 from app.dependencies import get_current_user, require_roles
@@ -37,6 +38,9 @@ async def list_matters(
     attorney_id: Optional[uuid.UUID] = None,
     litigation_type: Optional[LitigationType] = None,
 ):
+    # Non-admin users can only see matters they are assigned to
+    if current_user.role.value != "admin":
+        attorney_id = current_user.id
     matters, total = await get_matters(db, page, page_size, search, status, client_id, attorney_id, litigation_type)
     items = [MatterResponse.model_validate(m).model_dump() for m in matters]
     return PaginatedResponse.create(items=items, total=total, page=page, page_size=page_size)
@@ -48,6 +52,7 @@ async def get_matter_detail(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ):
+    await check_matter_access(db, current_user, matter_id)
     matter = await get_matter(db, matter_id)
     if matter is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
@@ -82,6 +87,7 @@ async def update_existing_matter(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(require_roles("admin", "attorney", "paralegal"))],
 ):
+    await check_matter_access(db, current_user, matter_id)
     matter = await get_matter(db, matter_id)
     if matter is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
@@ -128,6 +134,7 @@ async def add_contact_to_matter(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(require_roles("admin", "attorney", "paralegal"))],
 ):
+    await check_matter_access(db, current_user, matter_id)
     matter = await get_matter(db, matter_id)
     if matter is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
@@ -143,4 +150,5 @@ async def remove_contact_from_matter(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(require_roles("admin", "attorney", "paralegal"))],
 ):
+    await check_matter_access(db, current_user, matter_id)
     await remove_matter_contact(db, matter_contact_id)

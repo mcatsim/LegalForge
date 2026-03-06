@@ -1,6 +1,6 @@
 import json
 import uuid as _uuid
-from typing import Annotated, List
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func, select
@@ -53,6 +53,7 @@ from app.auth.service import (
     webauthn_registration_complete,
 )
 from app.common.pagination import PaginatedResponse, PaginationParams
+from app.common.rate_limit import rate_limit_2fa, rate_limit_login, reset_login_rate_limit
 from app.database import get_db
 from app.dependencies import get_current_user, require_roles
 
@@ -61,6 +62,7 @@ router = APIRouter()
 
 @router.post("/login", response_model=LoginResponse)
 async def login(data: LoginRequest, request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
+    rate_limit_login(request)
     user = await authenticate_user(db, data.email, data.password)
     if user is None:
         # Commit to persist failed-login counter / lockout state before
@@ -68,8 +70,11 @@ async def login(data: LoginRequest, request: Request, db: Annotated[AsyncSession
         await db.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
+    # Successful auth — clear rate limit for this IP
+    reset_login_rate_limit(request)
+
     # If any MFA method is enabled, return a temporary token instead of full credentials
-    mfa_methods: List[str] = []
+    mfa_methods: list[str] = []
     if user.totp_enabled:
         mfa_methods.append("totp")
     if user.webauthn_enabled:
@@ -123,8 +128,21 @@ async def change_password(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
 
     current_user.password_hash = hash_password(data.new_password)
+
+    # Revoke all existing refresh tokens (force re-login on other devices)
+    from app.auth.models import RefreshToken
+
+    tokens_result = await db.execute(
+        select(RefreshToken).where(
+            RefreshToken.user_id == current_user.id,
+            RefreshToken.revoked == False,  # noqa: E712
+        )
+    )
+    for token in tokens_result.scalars().all():
+        token.revoked = True
+
     await db.flush()
-    return {"message": "Password updated"}
+    return {"message": "Password updated. Please log in again on other devices."}
 
 
 # ── Two-Factor Authentication ─────────────────────────────────────
@@ -133,6 +151,7 @@ async def change_password(
 @router.post("/2fa/verify", response_model=LoginResponse)
 async def verify_2fa_login(data: TwoFactorLoginRequest, request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
     """Verify a TOTP code (or recovery code) to complete 2FA login."""
+    rate_limit_2fa(request)
     user_id = verify_2fa_pending_token(data.temp_token)
     if user_id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired 2FA token")
@@ -281,9 +300,7 @@ async def webauthn_register_complete_endpoint(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     try:
-        credential = await webauthn_registration_complete(
-            current_user, data.credential, data.name, db
-        )
+        credential = await webauthn_registration_complete(current_user, data.credential, data.name, db)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
@@ -347,7 +364,7 @@ async def webauthn_authenticate_complete(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
 
     try:
-        success = await webauthn_auth_complete(user, data.credential, db)
+        await webauthn_auth_complete(user, data.credential, db)
     except ValueError as e:
         await create_audit_log(
             db,
@@ -388,7 +405,7 @@ async def webauthn_authenticate_complete(
     return LoginResponse(access_token=access_token, refresh_token=refresh_token)
 
 
-@router.get("/webauthn/credentials", response_model=List[WebAuthnCredentialResponse])
+@router.get("/webauthn/credentials", response_model=list[WebAuthnCredentialResponse])
 async def list_webauthn_credentials(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],

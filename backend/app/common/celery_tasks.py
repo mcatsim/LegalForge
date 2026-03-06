@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 def _get_sync_session() -> Session:
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+
     from app.config import settings
 
     url = settings.database_url
@@ -27,8 +28,8 @@ def _get_sync_session() -> Session:
         url = url.replace("sqlite+aiosqlite", "sqlite", 1)
 
     engine = create_engine(url)
-    SessionLocal = sessionmaker(bind=engine)
-    return SessionLocal()
+    session_factory = sessionmaker(bind=engine)
+    return session_factory()
 
 
 def _load_siem_config(session: Session):
@@ -61,13 +62,12 @@ def _audit_log_to_event_json(log) -> AuditEventJSON:
 @celery.task(name="push_siem_event", bind=True, max_retries=3)
 def push_siem_event(self, audit_log_id: str):
     import uuid
+
     from app.auth.models import AuditLog
 
     session = _get_sync_session()
     try:
-        result = session.execute(
-            select(AuditLog).where(AuditLog.id == uuid.UUID(audit_log_id))
-        )
+        result = session.execute(select(AuditLog).where(AuditLog.id == uuid.UUID(audit_log_id)))
         log_entry = result.scalar_one_or_none()
         if log_entry is None:
             logger.warning("Audit log entry %s not found", audit_log_id)
@@ -104,7 +104,9 @@ def push_siem_event(self, audit_log_id: str):
 
         # Send via syslog if configured
         if config.syslog_host:
-            protocol = config.syslog_protocol.value if hasattr(config.syslog_protocol, "value") else config.syslog_protocol
+            protocol = (
+                config.syslog_protocol.value if hasattr(config.syslog_protocol, "value") else config.syslog_protocol
+            )
             push_siem_syslog.delay(
                 config.syslog_host,
                 config.syslog_port or 514,
@@ -114,7 +116,7 @@ def push_siem_event(self, audit_log_id: str):
             )
     except Exception as exc:
         logger.error("Error pushing SIEM event: %s", exc)
-        raise self.retry(exc=exc, countdown=2 ** self.request.retries)
+        raise self.retry(exc=exc, countdown=2**self.request.retries)
     finally:
         session.close()
 
@@ -132,9 +134,7 @@ def push_siem_webhook(self, url: str, payload: dict, secret: str):
         signature = ""
         if secret:
             sign_payload = timestamp.encode("utf-8") + b"." + payload_bytes
-            signature = hmac.new(
-                secret.encode("utf-8"), sign_payload, hashlib.sha256
-            ).hexdigest()
+            signature = hmac.new(secret.encode("utf-8"), sign_payload, hashlib.sha256).hexdigest()
 
         headers = {
             "Content-Type": "application/json",
@@ -150,7 +150,7 @@ def push_siem_webhook(self, url: str, payload: dict, secret: str):
         logger.info("SIEM webhook sent to %s (status %d)", url, resp.status_code)
     except Exception as exc:
         logger.error("SIEM webhook error: %s", exc)
-        raise self.retry(exc=exc, countdown=2 ** self.request.retries)
+        raise self.retry(exc=exc, countdown=2**self.request.retries)
 
 
 @celery.task(
@@ -174,13 +174,11 @@ def push_siem_syslog(
 
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(
-                send_syslog_message(host, port, protocol, message, tls_ca_cert)
-            )
+            loop.run_until_complete(send_syslog_message(host, port, protocol, message, tls_ca_cert))
         finally:
             loop.close()
 
         logger.info("SIEM syslog sent to %s:%d via %s", host, port, protocol)
     except Exception as exc:
         logger.error("SIEM syslog error: %s", exc)
-        raise self.retry(exc=exc, countdown=2 ** self.request.retries)
+        raise self.retry(exc=exc, countdown=2**self.request.retries)

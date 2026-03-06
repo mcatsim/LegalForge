@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -39,7 +39,7 @@ class CloudFileItem(BaseModel):
 
 
 class CloudFileBrowserResponse(BaseModel):
-    items: List[CloudFileItem]
+    items: list[CloudFileItem]
     folder_id: Optional[str] = None
     folder_name: Optional[str] = None
 

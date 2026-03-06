@@ -1,5 +1,3 @@
-from typing import Optional
-
 from app.cloud_storage.providers.base import CloudStorageProvider
 from app.cloud_storage.providers.box import BoxProvider
 from app.cloud_storage.providers.dropbox import DropboxProvider

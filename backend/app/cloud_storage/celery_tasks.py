@@ -22,8 +22,8 @@ def _get_sync_session() -> Session:
     # Convert async URL to sync for Celery tasks
     sync_url = settings.database_url.replace("+asyncpg", "").replace("+aiosqlite", "")
     engine = create_engine(sync_url)
-    SessionLocal = sessionmaker(bind=engine)
-    return SessionLocal()
+    session_factory = sessionmaker(bind=engine)
+    return session_factory()
 
 
 @celery.task(name="cloud_storage.refresh_cloud_tokens")
@@ -34,7 +34,7 @@ def refresh_cloud_tokens():
         threshold = datetime.now(timezone.utc) + timedelta(hours=1)
         result = session.execute(
             select(CloudStorageConnection).where(
-                CloudStorageConnection.is_active == True,
+                CloudStorageConnection.is_active,
                 CloudStorageConnection.token_expires_at.isnot(None),
                 CloudStorageConnection.token_expires_at < threshold,
                 CloudStorageConnection.refresh_token_encrypted.isnot(None),
@@ -51,9 +51,7 @@ def refresh_cloud_tokens():
                 # Run async method synchronously
                 loop = asyncio.new_event_loop()
                 try:
-                    token_data = loop.run_until_complete(
-                        provider_impl.refresh_access_token(refresh_token)
-                    )
+                    token_data = loop.run_until_complete(provider_impl.refresh_access_token(refresh_token))
                 finally:
                     loop.close()
 
@@ -65,9 +63,7 @@ def refresh_cloud_tokens():
                 if new_refresh_token:
                     connection.refresh_token_encrypted = encrypt_field(new_refresh_token)
                 if expires_in:
-                    connection.token_expires_at = datetime.now(timezone.utc) + timedelta(
-                        seconds=int(expires_in)
-                    )
+                    connection.token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
 
                 refreshed += 1
                 logger.info(

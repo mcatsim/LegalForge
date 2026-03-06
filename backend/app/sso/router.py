@@ -161,32 +161,26 @@ async def sso_callback(
 async def saml_callback(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
-    SAMLResponse: str = Form(...),
-    RelayState: str = Form(default=""),
+    saml_response: str = Form(..., alias="SAMLResponse"),
+    relay_state: str = Form(default="", alias="RelayState"),
 ):
-    # RelayState contains the provider_id
-    if not RelayState:
+    # relay_state contains the provider_id
+    if not relay_state:
         frontend_base = settings.backend_cors_origins[0] if settings.backend_cors_origins else "http://localhost"
-        return RedirectResponse(
-            url=f"{frontend_base}/sso/callback?error=Missing+RelayState", status_code=302
-        )
+        return RedirectResponse(url=f"{frontend_base}/sso/callback?error=Missing+RelayState", status_code=302)
 
     try:
-        provider_id = uuid.UUID(RelayState)
+        provider_id = uuid.UUID(relay_state)
     except (ValueError, AttributeError):
         frontend_base = settings.backend_cors_origins[0] if settings.backend_cors_origins else "http://localhost"
-        return RedirectResponse(
-            url=f"{frontend_base}/sso/callback?error=Invalid+RelayState", status_code=302
-        )
+        return RedirectResponse(url=f"{frontend_base}/sso/callback?error=Invalid+RelayState", status_code=302)
 
     provider = await get_sso_provider(db, provider_id)
     if provider is None:
         frontend_base = settings.backend_cors_origins[0] if settings.backend_cors_origins else "http://localhost"
-        return RedirectResponse(
-            url=f"{frontend_base}/sso/callback?error=Provider+not+found", status_code=302
-        )
+        return RedirectResponse(url=f"{frontend_base}/sso/callback?error=Provider+not+found", status_code=302)
 
-    saml_response_data = {"SAMLResponse": SAMLResponse, "RelayState": RelayState}
+    saml_response_data = {"SAMLResponse": saml_response, "RelayState": relay_state}
 
     try:
         user, access_token, refresh_token = await handle_saml_callback(saml_response_data, provider, db)
@@ -202,9 +196,7 @@ async def saml_callback(
             outcome="failure",
         )
         frontend_base = settings.backend_cors_origins[0] if settings.backend_cors_origins else "http://localhost"
-        return RedirectResponse(
-            url=f"{frontend_base}/sso/callback?error={str(e)}", status_code=302
-        )
+        return RedirectResponse(url=f"{frontend_base}/sso/callback?error={str(e)}", status_code=302)
     except Exception:
         await create_audit_log(
             db,
@@ -217,9 +209,7 @@ async def saml_callback(
             outcome="failure",
         )
         frontend_base = settings.backend_cors_origins[0] if settings.backend_cors_origins else "http://localhost"
-        return RedirectResponse(
-            url=f"{frontend_base}/sso/callback?error=Authentication+failed", status_code=302
-        )
+        return RedirectResponse(url=f"{frontend_base}/sso/callback?error=Authentication+failed", status_code=302)
 
     await create_audit_log(
         db,

@@ -4,7 +4,7 @@ import json
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import Optional
 
 import jwt
 import pyotp
@@ -12,9 +12,20 @@ import redis.asyncio as aioredis
 from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from webauthn import generate_authentication_options, generate_registration_options, verify_authentication_response, verify_registration_response
+from webauthn import (
+    generate_authentication_options,
+    generate_registration_options,
+    verify_authentication_response,
+    verify_registration_response,
+)
 from webauthn.helpers import options_to_json
-from webauthn.helpers.structs import AuthenticatorSelectionCriteria, AuthenticatorTransport, PublicKeyCredentialDescriptor, ResidentKeyRequirement, UserVerificationRequirement
+from webauthn.helpers.structs import (
+    AuthenticatorSelectionCriteria,
+    AuthenticatorTransport,
+    PublicKeyCredentialDescriptor,
+    ResidentKeyRequirement,
+    UserVerificationRequirement,
+)
 
 from app.auth.models import AuditLog, RefreshToken, User, UserRole, WebAuthnCredential
 from app.auth.schemas import UserCreate
@@ -39,7 +50,7 @@ def create_access_token(user_id: str, role: str) -> str:
 
 
 def create_refresh_token_value() -> str:
-    return str(uuid.uuid4())
+    return secrets.token_urlsafe(32)
 
 
 def hash_token(token: str) -> str:
@@ -87,8 +98,8 @@ def verify_totp_code(secret: str, code: str) -> bool:
 
 
 def generate_recovery_codes(count: int = 8) -> list[str]:
-    """Generate plaintext recovery codes."""
-    return [secrets.token_hex(4).upper() for _ in range(count)]
+    """Generate plaintext recovery codes with 64 bits of entropy each."""
+    return [secrets.token_hex(8).upper() for _ in range(count)]
 
 
 def hash_recovery_codes(codes: list[str]) -> str:
@@ -98,12 +109,18 @@ def hash_recovery_codes(codes: list[str]) -> str:
 
 
 def verify_recovery_code(stored_hashes_json: str, code: str) -> tuple[bool, str]:
-    """Verify a recovery code. Returns (valid, updated_hashes_json) with used code removed."""
+    """Verify a recovery code using constant-time comparison.
+
+    Returns (valid, updated_hashes_json) with used code removed.
+    """
+    import hmac as _hmac
+
     code_hash = hashlib.sha256(code.upper().encode()).hexdigest()
     hashes = json.loads(stored_hashes_json)
-    if code_hash in hashes:
-        hashes.remove(code_hash)
-        return True, json.dumps(hashes)
+    for i, stored_hash in enumerate(hashes):
+        if _hmac.compare_digest(code_hash, stored_hash):
+            hashes.pop(i)
+            return True, json.dumps(hashes)
     return False, stored_hashes_json
 
 
@@ -235,7 +252,7 @@ async def webauthn_registration_complete(
 
     aaguid_str = str(verification.aaguid) if verification.aaguid else None
 
-    transports_list: Optional[List[str]] = None
+    transports_list: Optional[list[str]] = None
     raw_transports = credential_data.get("response", {}).get("transports")
     if raw_transports and isinstance(raw_transports, list):
         transports_list = raw_transports
@@ -329,15 +346,11 @@ async def webauthn_auth_complete(user: User, credential_data: dict, db: AsyncSes
 
 
 async def get_user_webauthn_credentials(user_id: uuid.UUID, db: AsyncSession) -> list:
-    result = await db.execute(
-        select(WebAuthnCredential).where(WebAuthnCredential.user_id == user_id)
-    )
+    result = await db.execute(select(WebAuthnCredential).where(WebAuthnCredential.user_id == user_id))
     return list(result.scalars().all())
 
 
-async def delete_webauthn_credential(
-    credential_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession
-) -> None:
+async def delete_webauthn_credential(credential_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession) -> None:
     result = await db.execute(
         select(WebAuthnCredential).where(
             WebAuthnCredential.id == credential_id,
@@ -351,9 +364,7 @@ async def delete_webauthn_credential(
     await db.delete(credential)
     await db.flush()
 
-    remaining = await db.execute(
-        select(WebAuthnCredential).where(WebAuthnCredential.user_id == user_id)
-    )
+    remaining = await db.execute(select(WebAuthnCredential).where(WebAuthnCredential.user_id == user_id))
     if remaining.scalar_one_or_none() is None:
         user_result = await db.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one_or_none()
@@ -524,4 +535,6 @@ async def bootstrap_admin():
         )
         db.add(admin)
         await db.commit()
-        print(f"Bootstrap admin created: {settings.first_admin_email}")
+        import logging
+
+        logging.getLogger(__name__).info("Bootstrap admin created")

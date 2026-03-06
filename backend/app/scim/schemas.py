@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -28,7 +28,7 @@ class ScimEnterpriseUser(BaseModel):
 class ScimUser(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    schemas: List[str] = [
+    schemas: list[str] = [
         "urn:ietf:params:scim:schemas:core:2.0:User",
         "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User",
     ]
@@ -36,30 +36,30 @@ class ScimUser(BaseModel):
     external_id: Optional[str] = Field(None, alias="externalId")
     user_name: str = Field(alias="userName")
     name: ScimName
-    emails: List[ScimEmail]
+    emails: list[ScimEmail]
     active: bool
-    roles: Optional[List[Dict[str, str]]] = None
+    roles: Optional[list[dict[str, str]]] = None
     enterprise_user: Optional[ScimEnterpriseUser] = Field(
         None,
         alias="urn:ietf:params:scim:schemas:extension:enterprise:2.0:User",
     )
-    meta: Dict[str, str]
+    meta: dict[str, str]
 
 
 class ScimListResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    schemas: List[str] = ["urn:ietf:params:scim:api:messages:2.0:ListResponse"]
+    schemas: list[str] = ["urn:ietf:params:scim:api:messages:2.0:ListResponse"]
     total_results: int = Field(alias="totalResults")
     start_index: int = Field(alias="startIndex")
     items_per_page: int = Field(alias="itemsPerPage")
-    resources: List[ScimUser] = Field(alias="Resources")
+    resources: list[ScimUser] = Field(alias="Resources")
 
 
 class ScimError(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    schemas: List[str] = ["urn:ietf:params:scim:api:messages:2.0:Error"]
+    schemas: list[str] = ["urn:ietf:params:scim:api:messages:2.0:Error"]
     status: str
     detail: str
     scim_type: Optional[str] = Field(None, alias="scimType")
@@ -68,8 +68,8 @@ class ScimError(BaseModel):
 class ScimPatchOp(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    schemas: List[str] = ["urn:ietf:params:scim:api:messages:2.0:PatchOp"]
-    operations: List[Dict] = Field(alias="Operations")
+    schemas: list[str] = ["urn:ietf:params:scim:api:messages:2.0:PatchOp"]
+    operations: list[dict] = Field(alias="Operations")
 
 
 class ScimBearerTokenCreate(BaseModel):

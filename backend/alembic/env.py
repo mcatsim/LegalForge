@@ -9,9 +9,9 @@ from alembic import context
 from app.accounting.models import AccountMapping, ChartOfAccounts, ExportHistory  # noqa: F401
 from app.auth.models import AuditLog, RefreshToken, SystemSetting, User  # noqa: F401
 from app.billing.models import Invoice, InvoiceLineItem, Payment, RateSchedule, TimeEntry  # noqa: F401
-from app.cloud_storage.models import CloudStorageConnection, CloudStorageLink  # noqa: F401
 from app.calendar.models import CalendarEvent  # noqa: F401
 from app.clients.models import Client  # noqa: F401
+from app.cloud_storage.models import CloudStorageConnection, CloudStorageLink  # noqa: F401
 from app.contacts.models import Contact  # noqa: F401
 
 # Import all models so they register with Base.metadata

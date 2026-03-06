@@ -35,9 +35,7 @@ def upgrade() -> None:
             server_default="udp",
         ),
         sa.Column("syslog_tls_ca_cert", sa.Text(), nullable=True),
-        sa.Column(
-            "realtime_enabled", sa.Boolean(), nullable=False, server_default="0"
-        ),
+        sa.Column("realtime_enabled", sa.Boolean(), nullable=False, server_default="0"),
         sa.Column(
             "realtime_format",
             sa.Enum("json", "cef", "syslog", name="siemformat"),

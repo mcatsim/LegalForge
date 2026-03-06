@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Tuple
+from typing import Optional
 from urllib.parse import urlencode
 
 import httpx
@@ -106,7 +106,7 @@ class GoogleDriveProvider(CloudStorageProvider):
             "web_url": f.get("webViewLink"),
         }
 
-    async def download_file(self, access_token: str, file_id: str) -> Tuple[bytes, str, str]:
+    async def download_file(self, access_token: str, file_id: str) -> tuple[bytes, str, str]:
         async with httpx.AsyncClient() as client:
             # Get metadata first
             meta_resp = await client.get(
@@ -148,12 +148,16 @@ class GoogleDriveProvider(CloudStorageProvider):
 
         boundary = "----LexNebulisBoundary"
         body = (
-            f"--{boundary}\r\n"
-            f'Content-Type: application/json; charset=UTF-8\r\n\r\n'
-            f"{json.dumps(metadata)}\r\n"
-            f"--{boundary}\r\n"
-            f"Content-Type: {mime_type}\r\n\r\n"
-        ).encode() + content + f"\r\n--{boundary}--".encode()
+            (
+                f"--{boundary}\r\n"
+                f"Content-Type: application/json; charset=UTF-8\r\n\r\n"
+                f"{json.dumps(metadata)}\r\n"
+                f"--{boundary}\r\n"
+                f"Content-Type: {mime_type}\r\n\r\n"
+            ).encode()
+            + content
+            + f"\r\n--{boundary}--".encode()
+        )
 
         async with httpx.AsyncClient() as client:
             resp = await client.post(

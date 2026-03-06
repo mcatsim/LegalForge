@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -66,7 +66,7 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
     requires_2fa: bool = False
     temp_token: Optional[str] = None
-    mfa_methods: Optional[List[str]] = None
+    mfa_methods: Optional[list[str]] = None
 
 
 class TwoFactorSetupResponse(BaseModel):
@@ -126,7 +126,7 @@ class WebAuthnAuthCompleteRequest(BaseModel):
 class WebAuthnCredentialResponse(BaseModel):
     id: str
     name: str
-    transports: Optional[List[str]] = None
+    transports: Optional[list[str]] = None
     created_at: datetime
 
 

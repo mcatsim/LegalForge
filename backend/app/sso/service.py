@@ -1,4 +1,3 @@
-import base64
 import logging
 import secrets
 import uuid
@@ -7,7 +6,7 @@ from typing import Optional
 
 import httpx
 import jwt as jose_jwt
-from cryptography.fernet import Fernet, InvalidToken
+from jwt import PyJWKClient
 from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 from sqlalchemy import select, update
@@ -15,33 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User, UserRole
 from app.auth.service import create_access_token, create_refresh_token, hash_password
+from app.common.encryption import decrypt_field as decrypt_value
+from app.common.encryption import encrypt_field as encrypt_value
 from app.config import settings
 from app.sso.models import SSOProvider, SSOSession
 
 logger = logging.getLogger(__name__)
-
-
-def _derive_fernet_key(encryption_key: str) -> bytes:
-    """Derive a valid Fernet key from the field_encryption_key setting."""
-    import hashlib
-
-    key_bytes = hashlib.sha256(encryption_key.encode()).digest()
-    return base64.urlsafe_b64encode(key_bytes)
-
-
-def encrypt_value(plaintext: str) -> str:
-    """Encrypt a string value using Fernet symmetric encryption."""
-    fernet = Fernet(_derive_fernet_key(settings.field_encryption_key))
-    return fernet.encrypt(plaintext.encode()).decode()
-
-
-def decrypt_value(ciphertext: str) -> str:
-    """Decrypt a Fernet-encrypted string value."""
-    fernet = Fernet(_derive_fernet_key(settings.field_encryption_key))
-    try:
-        return fernet.decrypt(ciphertext.encode()).decode()
-    except InvalidToken:
-        return ""
 
 
 def mask_secret(encrypted_secret: Optional[str]) -> Optional[str]:
@@ -78,9 +56,7 @@ async def create_sso_provider(db: AsyncSession, data: dict, created_by: Optional
         saml_sp_entity_id=data.get("saml_sp_entity_id"),
         saml_idp_metadata_url=data.get("saml_idp_metadata_url"),
         saml_idp_metadata_xml=data.get("saml_idp_metadata_xml"),
-        saml_name_id_format=data.get(
-            "saml_name_id_format", "urn:oasis:names:tc:SAML:2.0:nameid-format:emailAddress"
-        ),
+        saml_name_id_format=data.get("saml_name_id_format", "urn:oasis:names:tc:SAML:2.0:nameid-format:emailAddress"),
         saml_sign_requests=data.get("saml_sign_requests", False),
         saml_sp_certificate=data.get("saml_sp_certificate"),
         saml_attribute_mapping=data.get("saml_attribute_mapping"),
@@ -280,8 +256,7 @@ def _build_saml_settings(provider: SSOProvider) -> dict:
             "url": acs_url,
             "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
         },
-        "NameIDFormat": provider.saml_name_id_format
-        or "urn:oasis:names:tc:SAML:2.0:nameid-format:emailAddress",
+        "NameIDFormat": provider.saml_name_id_format or "urn:oasis:names:tc:SAML:2.0:nameid-format:emailAddress",
     }
 
     if provider.saml_sp_certificate:
@@ -323,7 +298,7 @@ def _prepare_saml_request_data(url: str, post_data: Optional[dict] = None) -> di
 
 async def initiate_saml_login(db: AsyncSession, provider: SSOProvider) -> tuple[str, str]:
     saml_settings = _build_saml_settings(provider)
-    base_url = settings.sso_redirect_uri.rsplit("/callback", 1)[0]
+    settings.sso_redirect_uri.rsplit("/callback", 1)[0]
     acs_url = saml_settings["sp"]["assertionConsumerService"]["url"]
     request_data = _prepare_saml_request_data(acs_url)
 
@@ -351,10 +326,9 @@ async def handle_saml_callback(
     provider: SSOProvider,
     db: AsyncSession,
 ) -> tuple:
-    from app.auth.service import create_audit_log
 
     saml_settings = _build_saml_settings(provider)
-    base_url = settings.sso_redirect_uri.rsplit("/callback", 1)[0]
+    settings.sso_redirect_uri.rsplit("/callback", 1)[0]
     acs_url = saml_settings["sp"]["assertionConsumerService"]["url"]
 
     request_data = _prepare_saml_request_data(acs_url, post_data=saml_response_data)
@@ -374,7 +348,7 @@ async def handle_saml_callback(
     # Extract NameID and attributes
     name_id = auth.get_nameid()
     attributes = auth.get_attributes()
-    session_index = auth.get_session_index()
+    auth.get_session_index()
 
     # Map attributes to user fields using attribute_mapping or defaults
     attr_mapping = provider.saml_attribute_mapping or {}
@@ -428,7 +402,7 @@ async def handle_saml_callback(
 
 def generate_sp_metadata(provider: SSOProvider) -> str:
     saml_settings = _build_saml_settings(provider)
-    base_url = settings.sso_redirect_uri.rsplit("/callback", 1)[0]
+    settings.sso_redirect_uri.rsplit("/callback", 1)[0]
     acs_url = saml_settings["sp"]["assertionConsumerService"]["url"]
 
     request_data = _prepare_saml_request_data(acs_url)
@@ -442,17 +416,35 @@ def generate_sp_metadata(provider: SSOProvider) -> str:
     return metadata
 
 
-async def handle_sso_callback(db: AsyncSession, code: str, state: str) -> tuple[User, str, str]:
-    """
-    Handle the SSO callback from the IdP.
+async def _decode_id_token(id_token: str, jwks_uri: Optional[str], client_id: str) -> dict:
+    """Decode and verify an OIDC id_token using the provider's JWKS.
 
-    Validates state, exchanges code for tokens, extracts user claims,
-    finds or creates the user, and issues app JWT tokens.
-
-    Returns (user, access_token, refresh_token_value).
+    Raises ValueError if the token cannot be verified.
     """
-    # 1. Validate state and find the SSO session
-    result = await db.execute(select(SSOSession).where(SSOSession.state == state))
+    if not jwks_uri:
+        raise ValueError("Cannot verify id_token: no JWKS URI configured for this provider")
+
+    try:
+        jwks_client = PyJWKClient(jwks_uri)
+        signing_key = jwks_client.get_signing_key_from_jwt(id_token)
+        claims = jose_jwt.decode(
+            id_token,
+            signing_key.key,
+            algorithms=["RS256", "ES256"],
+            audience=client_id,
+            options={"verify_exp": True},
+        )
+        return claims
+    except Exception as e:
+        raise ValueError(f"id_token signature verification failed: {e}")
+
+
+async def _consume_sso_state(db: AsyncSession, state: str) -> SSOSession:
+    """Validate and delete the SSO state parameter in one operation.
+
+    Raises ValueError if the state is invalid, expired, or already used.
+    """
+    result = await db.execute(select(SSOSession).where(SSOSession.state == state).with_for_update())
     sso_session = result.scalar_one_or_none()
 
     if sso_session is None:
@@ -464,7 +456,28 @@ async def handle_sso_callback(db: AsyncSession, code: str, state: str) -> tuple[
         if expires.tzinfo is None:
             expires = expires.replace(tzinfo=timezone.utc)
         if expires < datetime.now(timezone.utc):
+            await db.delete(sso_session)
             raise ValueError("SSO session has expired")
+
+    # Consume: delete the session so it cannot be reused
+    await db.delete(sso_session)
+    await db.flush()
+
+    # Return the session (detached) with the info we need
+    return sso_session
+
+
+async def handle_sso_callback(db: AsyncSession, code: str, state: str) -> tuple[User, str, str]:
+    """
+    Handle the SSO callback from the IdP.
+
+    Validates state, exchanges code for tokens, extracts user claims,
+    finds or creates the user, and issues app JWT tokens.
+
+    Returns (user, access_token, refresh_token_value).
+    """
+    # 1. Validate and consume the state parameter (one-time use)
+    sso_session = await _consume_sso_state(db, state)
 
     # 2. Get the provider
     provider_result = await db.execute(select(SSOProvider).where(SSOProvider.id == sso_session.provider_id))
@@ -506,16 +519,15 @@ async def handle_sso_callback(db: AsyncSession, code: str, state: str) -> tuple[
     claims: dict = {}
 
     if id_token:
-        # Decode the id_token. For simplicity, we decode without verification
-        # against JWKS here (the token was just received directly from the IdP
-        # over HTTPS). In production, you'd verify the signature using the JWKS.
         try:
-            claims = jose_jwt.decode(
+            claims = await _decode_id_token(
                 id_token,
-                options={"verify_signature": False},
-                algorithms=["RS256", "HS256"],
+                jwks_uri=provider.jwks_uri,
+                client_id=provider.client_id or "",
             )
-        except Exception:
+        except ValueError:
+            # If JWKS verification fails, fall back to userinfo endpoint only
+            # (the access_token was obtained directly from the IdP over TLS)
             claims = {}
 
     # If we don't have enough claims, try the userinfo endpoint
@@ -542,10 +554,16 @@ async def handle_sso_callback(db: AsyncSession, code: str, state: str) -> tuple[
     # 5. Find or create user
     user = await _find_or_create_user(db, provider, email, full_name, claims)
 
-    # 6. Update SSO session
-    sso_session.user_id = user.id
-    sso_session.external_id = external_id
-    sso_session.id_token_claims = claims
+    # 6. Create new SSO session for the authenticated user
+    new_sso_session = SSOSession(
+        provider_id=sso_session.provider_id,
+        user_id=user.id,
+        external_id=external_id,
+        state=secrets.token_urlsafe(32),
+        id_token_claims=claims,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=8),
+    )
+    db.add(new_sso_session)
     await db.flush()
 
     # 7. Issue app JWT tokens

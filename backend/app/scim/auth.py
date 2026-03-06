@@ -18,9 +18,7 @@ async def get_scim_client(
 ) -> ScimBearerToken:
     token_hash = hashlib.sha256(credentials.credentials.encode("utf-8")).hexdigest()
 
-    result = await db.execute(
-        select(ScimBearerToken).where(ScimBearerToken.token_hash == token_hash)
-    )
+    result = await db.execute(select(ScimBearerToken).where(ScimBearerToken.token_hash == token_hash))
     token_record = result.scalar_one_or_none()
 
     if token_record is None:

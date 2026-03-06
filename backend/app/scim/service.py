@@ -3,7 +3,7 @@ import re
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -149,9 +149,7 @@ async def list_users(
 
     # SCIM uses 1-based indexing
     offset = max(0, start_index - 1)
-    result = await db.execute(
-        query.order_by(User.created_at.asc()).offset(offset).limit(count)
-    )
+    result = await db.execute(query.order_by(User.created_at.asc()).offset(offset).limit(count))
     users = result.scalars().all()
 
     resources = [_map_user_to_scim(u, base_url) for u in users]
@@ -213,9 +211,7 @@ async def create_user(db: AsyncSession, scim_data: dict, base_url: str) -> dict:
     return _map_user_to_scim(user, base_url)
 
 
-async def update_user(
-    db: AsyncSession, user_id: uuid.UUID, scim_data: dict, base_url: str
-) -> Optional[dict]:
+async def update_user(db: AsyncSession, user_id: uuid.UUID, scim_data: dict, base_url: str) -> Optional[dict]:
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user is None:
@@ -251,9 +247,7 @@ async def update_user(
     return _map_user_to_scim(user, base_url)
 
 
-async def patch_user(
-    db: AsyncSession, user_id: uuid.UUID, operations: List[Dict], base_url: str
-) -> Optional[dict]:
+async def patch_user(db: AsyncSession, user_id: uuid.UUID, operations: list[dict], base_url: str) -> Optional[dict]:
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user is None:
@@ -353,7 +347,7 @@ async def create_bearer_token(
     description: str,
     expires_in_days: Optional[int],
     created_by: uuid.UUID,
-) -> Tuple[ScimBearerToken, str]:
+) -> tuple[ScimBearerToken, str]:
     plaintext_token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(plaintext_token.encode("utf-8")).hexdigest()
 
@@ -375,17 +369,13 @@ async def create_bearer_token(
     return token_record, plaintext_token
 
 
-async def list_bearer_tokens(db: AsyncSession) -> List[ScimBearerToken]:
-    result = await db.execute(
-        select(ScimBearerToken).order_by(ScimBearerToken.created_at.desc())
-    )
+async def list_bearer_tokens(db: AsyncSession) -> list[ScimBearerToken]:
+    result = await db.execute(select(ScimBearerToken).order_by(ScimBearerToken.created_at.desc()))
     return list(result.scalars().all())
 
 
 async def revoke_bearer_token(db: AsyncSession, token_id: uuid.UUID) -> bool:
-    result = await db.execute(
-        select(ScimBearerToken).where(ScimBearerToken.id == token_id)
-    )
+    result = await db.execute(select(ScimBearerToken).where(ScimBearerToken.id == token_id))
     token_record = result.scalar_one_or_none()
     if token_record is None:
         return False

@@ -1,6 +1,6 @@
 import json
 import uuid
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
@@ -25,7 +25,7 @@ from app.dependencies import get_current_user
 router = APIRouter()
 
 
-@router.get("/connections", response_model=List[CloudStorageConnectionResponse])
+@router.get("/connections", response_model=list[CloudStorageConnectionResponse])
 async def list_connections(
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -307,7 +307,7 @@ async def export_document(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/links", response_model=List[CloudStorageLinkResponse])
+@router.get("/links", response_model=list[CloudStorageLinkResponse])
 async def list_links(
     matter_id: uuid.UUID = Query(...),
     current_user=Depends(get_current_user),

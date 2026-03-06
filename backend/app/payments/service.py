@@ -1,14 +1,13 @@
-import base64
-import hashlib
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.billing.models import Invoice, InvoiceStatus, Payment, PaymentMethod
+from app.common.encryption import decrypt_field as decrypt_value
+from app.common.encryption import encrypt_field as encrypt_value
 from app.config import settings
 from app.payments.models import (
     PaymentLink,
@@ -29,29 +28,6 @@ from app.payments.schemas import (
     SendPaymentLinkRequest,
     SendPaymentLinkResponse,
 )
-
-# ── Encryption helpers (same pattern as SSO) ─────────────────────────
-
-
-def _derive_fernet_key(encryption_key: str) -> bytes:
-    """Derive a valid Fernet key from the field_encryption_key setting."""
-    key_bytes = hashlib.sha256(encryption_key.encode()).digest()
-    return base64.urlsafe_b64encode(key_bytes)
-
-
-def encrypt_value(plaintext: str) -> str:
-    """Encrypt a string value using Fernet symmetric encryption."""
-    fernet = Fernet(_derive_fernet_key(settings.field_encryption_key))
-    return fernet.encrypt(plaintext.encode()).decode()
-
-
-def decrypt_value(ciphertext: str) -> str:
-    """Decrypt a Fernet-encrypted string value."""
-    fernet = Fernet(_derive_fernet_key(settings.field_encryption_key))
-    try:
-        return fernet.decrypt(ciphertext.encode()).decode()
-    except InvalidToken:
-        return ""
 
 
 def mask_secret(encrypted_secret: Optional[str]) -> Optional[str]:
