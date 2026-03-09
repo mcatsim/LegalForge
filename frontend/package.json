@@ -53,7 +53,7 @@
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.56.1",
     "vite": "^6.0.0",
-    "vitest": "^3.0.0",
+    "vitest": "^4.0.18",
     "vitest-axe": "^0.1.0"
   }
 }
