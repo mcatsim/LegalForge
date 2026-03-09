@@ -20,7 +20,7 @@
     "@fullcalendar/react": "^6.1.0",
     "@fullcalendar/timegrid": "^6.1.0",
     "@mantine/core": "^7.15.0",
-    "@mantine/dates": "^7.15.0",
+    "@mantine/dates": "^8.3.15",
     "@mantine/form": "^7.15.0",
     "@mantine/hooks": "^7.15.0",
     "@mantine/modals": "^7.15.0",
