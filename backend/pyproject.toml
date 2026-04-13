@@ -40,14 +40,14 @@ dev = [
     "httpx>=0.28.0",
     "ruff>=0.8.0",
     "mypy>=1.13.0",
-    "factory-boy>=3.3.0",
+    "factory-boy>=3.3.3",
 ]
 test = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
     "pytest-cov>=6.0",
     "httpx>=0.28",
-    "factory-boy>=3.3",
+    "factory-boy>=3.3.3",
     "faker>=33.0",
     "aiosqlite>=0.20",
 ]
